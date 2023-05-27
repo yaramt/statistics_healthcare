@@ -10,15 +10,15 @@ Modes: <br />
         § **While sitting**
         § **While laying**
 
-    ○ **While walking**
-    ○ **While standing**
+    ○ **While walking**<br />
+    ○ **While standing**<br />
 
 - User is not on their phone
 
-    ○ While resting (split up into)
+    ○ While resting (split up into)<br />
 
         § **While sitting**
         § **While laying**
 
-    ○ **While walking**
-    ○ **While standing**
+    ○ **While walking**<br />
+    ○ **While standing**<br />
