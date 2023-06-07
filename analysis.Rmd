@@ -4,26 +4,45 @@ output: html_document
 date: "2023-05-22"
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
-
 ## R Markdown
-
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
-summary(cars)
+```{r}
+getwd()
 ```
 
-## Including Plots
+```{r}
+my.data <- read.table(header=TRUE, "processed_data.txt", sep="|")
 
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
+# 34|sit
+# 35|sit(phone)
+# 36|stand
+# 37|stand(phone)
+# 38|walk(phone)
+# 39|walk
+# 40|lay(phone)
+# 41|lay
+```
+## Acceleration Magnitude
+```{r}
+my.data$mag = sqrt(my.data$x^2 + my.data$y^2 + my.data$z^2)
+```
+## Timestamp = milliseconds after experiment start
+```{r}
+mt <- min(my.data$timestamp)
+my.data$timestamp <- my.data$timestamp - mt
+```
+## Data summary
+```{r}
+summary(my.data)
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+```{r}
+mean(my.data[my.data$statusId==34,]$mag)
+mean(my.data[my.data$statusId==35,]$mag)
+mean(my.data[my.data$statusId==36,]$mag)
+mean(my.data[my.data$statusId==37,]$mag)
+mean(my.data[my.data$statusId==38,]$mag)
+mean(my.data[my.data$statusId==39,]$mag)
+mean(my.data[my.data$statusId==40,]$mag)
+mean(my.data[my.data$statusId==41,]$mag)
+```
+
