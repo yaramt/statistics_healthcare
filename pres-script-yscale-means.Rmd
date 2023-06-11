@@ -1,0 +1,181 @@
+---
+title: "pres-script"
+author: "Sebastian Wagner"
+date: "2023-06-08"
+output: pdf_document
+---
+
+```{r hidden=TRUE}
+# for pretty printing
+library(glue)
+
+```
+
+## Data Preparation
+
+```{r}
+# set working dir to where data is
+#setwd("INSERT")
+
+
+# Imported preprocessed data
+dat <- read.csv("Data_clean/log_p6.txt", sep="|")
+
+# Filter sitting data out
+sitting_phone <- dat[dat$statusId == 2, ] # this is the id for sitting on phone
+sitting_no_phone <- dat[dat$statusId == 1, ] # this is the id for sitting
+walking_phone <- dat[dat$statusId == 4, ] # this is the id for walking on phone
+walking_no_phone <- dat[dat$statusId == 3, ] # this is the id for walking
+
+
+## Timestamp = milliseconds after experiment start
+mt_1 <- min(sitting_phone$timestamp)
+sitting_phone$timestamp <- sitting_phone$timestamp - mt_1
+
+mt_2 <- min(sitting_no_phone$timestamp)
+sitting_no_phone$timestamp <- sitting_no_phone$timestamp - mt_2
+
+mt_3 <- min(walking_phone$timestamp)
+walking_phone$timestamp <- walking_phone$timestamp - mt_3
+
+mt_4 <- min(walking_no_phone$timestamp)
+walking_no_phone$timestamp <- walking_no_phone$timestamp - mt_4
+
+# Acceleration level can be calculated with this:
+sitting_phone$acceleration <- sqrt(sitting_phone$x^2 + sitting_phone$y^2 + sitting_phone$z^2)
+sitting_no_phone$acceleration <- sqrt(sitting_no_phone$x^2 + sitting_no_phone$y^2 + sitting_no_phone$z^2)
+walking_phone$acceleration <- sqrt(walking_phone$x^2 + walking_phone$y^2 + walking_phone$z^2)
+walking_no_phone$acceleration <- sqrt(walking_no_phone$x^2 + walking_no_phone$y^2 + walking_no_phone$z^2)
+
+sitting_phone <- sitting_phone[c("timestamp", "acceleration")]
+sitting_no_phone <- sitting_no_phone[c("timestamp", "acceleration")]
+walking_phone <- walking_phone[c("timestamp", "acceleration")]
+walking_no_phone <- walking_no_phone[c("timestamp", "acceleration")]
+
+# Calculate the common y-axis limits
+y_limits <- c(min(sitting_phone$acceleration, walking_phone$acceleration, sitting_no_phone$acceleration, walking_no_phone$acceleration), 
+max(sitting_phone$acceleration, walking_phone$acceleration, sitting_no_phone$acceleration, walking_no_phone$acceleration))
+
+# Calculate the common x-axis limits
+x_limits <- c(min(sitting_phone$timestamp, walking_phone$timestamp, sitting_no_phone$timestamp, walking_no_phone$timestamp),
+max(sitting_phone$timestamp, walking_phone$timestamp, sitting_no_phone$timestamp, walking_no_phone$timestamp))
+
+# Plot on phone data
+plot(sitting_phone$timestamp,sitting_phone$acceleration,type = "l",col = 2,xlab = "Timestamp",ylab = "Acceleration sitting on phone", ylim = y_limits, xlim = x_limits)
+plot(walking_phone$timestamp,walking_phone$acceleration,type = "l",col = 4,xlab = "Timestamp",ylab = "Acceleration walking on phone", ylim = y_limits, xlim = x_limits)
+
+# Plot off phone data
+plot(sitting_no_phone$timestamp,sitting_no_phone$acceleration,type = "l",col = 2,xlab = "Timestamp",ylab = "Acceleration walking not on phone", ylim = y_limits, xlim = x_limits)
+plot(walking_no_phone$timestamp,walking_no_phone$acceleration,type = "l",col = 4,xlab = "Timestamp",ylab = "Acceleration sitting not on phone", ylim = y_limits)
+
+# We will minimize the effects of starting phase on the statistical analysis by
+# eliminating the first 3000 timestamps:
+sitting_phone <- sitting_phone[-(1:3000),]
+sitting_no_phone <- sitting_no_phone[-(1:3000),]
+walking_phone <- walking_phone[-(1:3000),]
+walking_no_phone <- walking_no_phone[-(1:3000),]
+
+# Define means
+mean_sitting_phone <- mean(sitting_phone$acceleration)
+mean_sitting_no_phone <- mean(sitting_no_phone$acceleration)
+mean_walking_phone <- mean(walking_phone$acceleration)
+mean_walking_no_phone <- mean(walking_no_phone$acceleration)
+
+# Create a data frame from the means
+means_dataset <- data.frame(
+  Condition = c("Sitting with Phone", "Sitting without Phone", "Walking with Phone", "Walking without Phone"),
+  Mean_Acceleration = c(mean_sitting_phone, mean_sitting_no_phone, mean_walking_phone, mean_walking_no_phone)
+)
+
+# Print the dataset
+means_dataset
+
+```
+
+## Testing
+
+> We expect to observe lower acceleration levels during sitting while using the phone compared to sitting without phone usage.
+> We expect to observe higher acceleration levels during walking while using the phone compared to walking without phone usage.
+
+```{r}
+# Plot on phone data
+plot(sitting_phone$timestamp,sitting_phone$acceleration,type = "l",col = 2,xlab = "Timestamp",ylab = "Acceleration")
+
+# Plot off phone data
+plot(sitting_no_phone$timestamp,sitting_no_phone$acceleration,type = "l",col = 2,xlab = "Timestamp",ylab = "Acceleration no phone")
+
+# Plot acceleration frequency
+hist(sitting_phone$acceleration, breaks=500)
+hist(sitting_no_phone$acceleration, breaks=500)
+hist(walking_phone$acceleration, breaks=500)
+hist(walking_no_phone$acceleration, breaks=500)
+
+# We can see that our data does not necessarily follow a normal distribution
+# This means we use Mann-Whitney test
+wilcox.test(sitting_phone$acceleration, sitting_no_phone$acceleration)
+# Sitting while not on the phone has less acceleration
+
+mean(sitting_phone$acceleration)
+mean(sitting_no_phone$acceleration)
+
+wilcox.test(walking_phone$acceleration, walking_no_phone$acceleration)
+# Walking while not on the phone has less acceleration
+
+median(walking_phone$acceleration)
+median(walking_no_phone$acceleration)
+
+# Let's see what the p value of testing the same class would be
+wilcox.test(walking_phone$acceleration[1:15000], walking_phone$acceleration[15000:30000])
+```
+
+## Multiple Testing
+
+```{r}
+# We've cramped the procedure in this function:
+test_participant <- function(filename) {
+  dat <- read.csv(filename, sep="|")
+  sitting_phone <- dat[dat$statusId == 2, ] # this is the id for sitting on phone
+  sitting_no_phone <- dat[dat$statusId == 1, ] # this is the id for sitting
+  walking_phone <- dat[dat$statusId == 4, ] # this is the id for walking on phone
+  walking_no_phone <- dat[dat$statusId == 3, ] # this is the id for walking
+  sitting_phone <- sitting_phone[-(1:3000),]
+  sitting_no_phone <- sitting_no_phone[-(1:3000),]
+  walking_phone <- walking_phone[-(1:3000),]
+  walking_no_phone <- walking_no_phone[-(1:3000),]
+  sitting_phone$acceleration <- sqrt(sitting_phone$x^2 + sitting_phone$y^2 + sitting_phone$z^2)
+  sitting_no_phone$acceleration <- sqrt(sitting_no_phone$x^2 + sitting_no_phone$y^2 + sitting_no_phone$z^2)
+  walking_phone$acceleration <- sqrt(walking_phone$x^2 + walking_phone$y^2 + walking_phone$z^2)
+  walking_no_phone$acceleration <- sqrt(walking_no_phone$x^2 + walking_no_phone$y^2 + walking_no_phone$z^2)
+  # Print p-value of test
+  sitting_res = glue('Sitting p = {wilcox.test(sitting_phone$acceleration, sitting_no_phone$acceleration)$p.value}')
+  walking_res = glue('Walking p = {wilcox.test(walking_phone$acceleration, walking_no_phone$acceleration)$p.value}')
+  
+  glue('{sitting_res}\n{walking_res}')
+}
+
+# Test all participants
+test_participant("Data_clean/log_p1.txt")
+test_participant("Data_clean/log_p2.txt")
+test_participant("Data_clean/log_p3.txt")
+test_participant("Data_clean/log_p4.txt")
+test_participant("Data_clean/log_p5.txt")
+test_participant("Data_clean/log_p6.txt")
+test_participant("Data_clean/log_p7.txt")
+test_participant("Data_clean/log_p8.txt")
+test_participant("Data_clean/log_p9.txt")
+test_participant("Data_clean/log_p10.txt")
+
+# All of the p values are very low and fall below 5 percent threshold
+# Even when you corrent it with Bonferroni correction the threshold for each 
+# test is alpha / 10 = 0.005 which they are still below
+
+```
+
+
+Now, for the feasibility study we have 10 recordings from different people that we'll use.
+In the following we will perform a test for all of the data combined.
+We'll be doing the above procedure for each participants data.
+In the end this will amount to 10 * 3 = 30 F-tests for each participant and dimension.
+For the test we will arbitrarily set our alpha to 5% and correct it with the Bonferroni correction.
+We divide it by the number of tests performed, to get an acceptable alpha of 0.05 / 30 = 0.00167 per test.
+
