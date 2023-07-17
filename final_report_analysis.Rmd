@@ -1,0 +1,257 @@
+---
+title: "Midterm-Paper"
+author: "Team 4"
+date: "2023-06-08"
+output:
+  html_document:
+    df_print: paged
+---
+
+H1_sit:  μ(sit_phone) ≠ μ(sit_no_phone)
+H0_sit: μ(sit_phone) = μ(sit_no_phone)
+
+H1_walk: μ(walk_phone) < μ(walk_no_phone)
+H0_walk:  μ(walk_phone) >= μ(walk_no_phone)
+
+## Data Preparation
+```{r}
+# Prepare dataframe for analysis
+testing_dat <- data.frame(
+  Id=integer(),
+  SitP=double(),
+  SitNP=double(),
+  WalkP=double(),
+  WalkNP=double(),
+  stringsAsFactors=FALSE
+)
+
+for (index in c(1:15)){
+  # Imported preprocessed data
+  dat <- read.csv(sprintf("/Users/yara/Desktop/final_report_statistics/github_statistics_healthcare-main/Data_clean/log_p%s.txt", index), sep="|")
+  
+# Acceleration
+dat$acceleration <- sqrt(dat$x^2 + dat$y^2 + dat$z^2)
+  
+  # "Stratify" data
+  sitting_phone <- dat[dat$statusId == 2, ] # this is the id for sitting on phone
+  sitting_no_phone <- dat[dat$statusId == 1, ] # this is the id for sitting
+  walking_phone <- dat[dat$statusId == 4, ] # this is the id for walking on phone
+  walking_no_phone <- dat[dat$statusId == 3, ] # this is the id for walking
+  
+  # Normalize timestamps to beginnings of recordings
+  min_sp <- min(sitting_phone$timestamp)
+  min_snp <- min(sitting_no_phone$timestamp)
+  min_wp <- min(walking_phone$timestamp)
+  min_wnp <- min(walking_no_phone$timestamp)
+  sitting_phone$timestamp <- (sitting_phone$timestamp - min_sp)
+  sitting_no_phone$timestamp <- (sitting_no_phone$timestamp - min_snp)
+  walking_phone$timestamp <- (walking_phone$timestamp - min_wp)
+  walking_no_phone$timestamp <- (walking_no_phone$timestamp - min_wnp)
+  
+  # Plot sitting data
+  {plot(sitting_phone$timestamp/1000, sitting_phone$acceleration,type = "l",col = "red",xlab = "Timestamp  [s]",xlim = c(10, 60), ylim=c(0,30),ylab = "Acceleration magnitude sitting [m/s^2]")
+  lines(sitting_no_phone$timestamp/1000, sitting_no_phone$acceleration,col = "blue")
+  legend("topleft", legend=c("on phone", "off phone"),col=c("red", "blue"), lty=1, cex=0.8)}
+  
+  # Plot walking phone data
+  {plot(walking_phone$timestamp/1000, walking_phone$acceleration,type = "l",col = 2,xlab = "Timestamp [s]",xlim = c(10, 60), ylim=c(0,30),ylab = "Acceleration magnitude walking [m/s^2]")
+  lines(walking_no_phone$timestamp/1000, walking_no_phone$acceleration,col = 4)
+  legend("topleft", legend=c("on phone", "off phone"),col=c("red", "blue"), lty=1:2, cex=0.8)}
+  
+  # We will minimize the effects of starting phase on the statistical analysis by
+  # eliminating the first 3000 timestamps:
+  sitting_phone <- sitting_phone[-(1:3000),]
+  sitting_no_phone <- sitting_no_phone[-(1:3000),]
+  walking_phone <- walking_phone[-(1:3000),]
+  walking_no_phone <- walking_no_phone[-(1:3000),]
+  
+  # Add entry for this specific participant to testing data
+  testing_dat[nrow(testing_dat) + 1,] = c(
+    index,
+    mean(sitting_phone$acceleration),
+    mean(sitting_no_phone$acceleration),
+    mean(walking_phone$acceleration),
+    mean(walking_no_phone$acceleration)
+  )
+}
+```
+## Normal Distribution Check for 15 Participants - Histograms
+```{r}
+# Histogram Sit with phone
+hist(testing_dat$SitP, breaks = seq(min(testing_dat$SitP), max(testing_dat$SitP), length.out = 30), ylim = c(1, 8),main = "Histogram of Sitting with Phone", xlab = "Mean Acceleration Magnitude [m/s^2]", ylab = "Frequency", xlim = c(9.5, 13), col = "black")
+
+# Histogram Sit without phone
+hist(testing_dat$SitNP, breaks = seq(min(testing_dat$SitNP), max(testing_dat$SitNP), length.out = 10), ylim = c(1, 8),main = "Histogram of Sitting without Phone", xlab = "Mean Acceleration Magnitude [m/s^2]", ylab = "Frequency", xlim = c(9.5, 13), col = "black")
+
+# Histogram Walk with phone
+hist(testing_dat$WalkP, breaks = seq(min(testing_dat$WalkP), max(testing_dat$WalkP), length.out = 10), ylim = c(1, 8),main = "Histogram of Walking with Phone", xlab = "Mean Acceleration Magnitude [m/s^2]", ylab = "Frequency", xlim = c(9.5, 13), col = "blue")
+
+#Histogram Walk without phone
+hist(testing_dat$WalkNP, breaks = seq(min(testing_dat$WalkNP), max(testing_dat$WalkNP),length.out =10), ylim = c(1, 8),main = "Histogram of Walking without Phone", xlab = "Mean Acceleration Magnitude [m/s^2]", ylab = "Frequency", xlim = c(9.5, 13), col = "blue")
+
+```
+
+## Normal Distribution Check for 15 Participants - Empirical Cumulative Distribution Function
+```{r}
+# ECDF Sit with phone
+n <- 15
+plot(sort(testing_dat$SitP), (1:n)/n, type="s", ylim=c(0,1), xlim=c(9.5,12))
+
+# ECDF Sit without phone
+plot(sort(testing_dat$SitNP), (1:n)/n, type="s", ylim=c(0,1), xlim=c(9.5,12))
+# ECDF Walk with phone
+plot(sort(testing_dat$WalkP), (1:n)/n, type="s", ylim=c(0,1), xlim=c(9.5,12))
+# ECDF Walk without phone
+plot(sort(testing_dat$WalkNP), (1:n)/n, type="s", ylim=c(0,1), xlim=c(9.5,12))
+```
+
+## Testing Wilcox
+
+Hypotheses:
+> When sitting, people induce different movement in their phone while using it than while not using it.
+> When walking, people induce less movement in their phone while using it than while not using it.
+
+```{r}
+# For none of the categories we can really assume normality of accelerations
+# from this small data. This very likely might change when the experiment is
+# conducted with more people
+
+# But for now this means we use Mann-Whitney test
+# Test first hypothesis: Different movement sitting while using than not
+wilcox.test(testing_dat$SitP, testing_dat$SitNP, alternative = "two.sided",paired=TRUE)
+# We can reject Null-Hypothesis, and confirm there is substantially different
+# movement in the phone while using it sitting than not using it sitting
+
+wilcox.test(testing_dat$WalkP, testing_dat$WalkNP, alternative="less",paired=TRUE)
+# We can reject Null-Hypothesis, and confirm there is substantially higher
+# movement in the phone while using it walking than not using it walking
+```
+
+## Testing T-test
+
+```{r}
+SitP.mean <- mean(testing_dat$SitP)
+SitNP.mean <- mean(testing_dat$SitNP)
+WalkP.mean <- mean(testing_dat$WalkP)
+WalkNP.mean <- mean(testing_dat$WalkNP)
+
+SitNP.mean - SitP.mean
+n <- 15
+sqrt(n)*(SitNP.mean - SitP.mean)/sd(testing_dat$SitNP - testing_dat$SitP)
+
+# Reject H0_sit => Accept H1_sit  => μ(sit_phone) ≠ μ(sit_no_phone)
+t.test(testing_dat$SitNP, testing_dat$SitP,alternative="two.sided", paired=TRUE)
+
+# Reject H0_walk => Accept H1_walk => μ(walk_phone) < μ(walk_no_phone)
+t.test(testing_dat$WalkP, testing_dat$WalkNP,alternative="less", paired=TRUE)
+```
+
+# Variance Tests - split data to independent participants 
+
+```{r}
+# 7 participants
+SitP_7p <- testing_dat$SitP[1:7]
+# Next 7 participants
+SitNP_7p <- testing_dat$SitNP[8:14]
+
+# 7 participants
+WalkP_7p <- testing_dat$WalkP[1:7]
+# Next 7 participants
+WalkNP_7p <- testing_dat$WalkNP[8:14]
+
+var(SitP_7p)
+var(SitNP_7p)
+var(WalkP_7p)
+var(WalkNP_7p)
+boxplot(SitP_7p, SitNP_7p,names=c("SitP_7p", "SitNP_7p"))
+boxplot(SitP_7p, SitNP_7p,names=c("SitP_7p", "SitNP_7p"), ylim=c(9.5,12.5))
+boxplot(WalkP_7p, WalkNP_7p,names=c("WalkP_7p", "WalkNP_7p"), ylim=c(9.5,12.5))
+
+#Unequal variance Var(SitP_7p)!=Var(SitNP_7p) && Var(WalkP_7p)!=Var(WalkNP_7p)
+```
+## F-Test
+```{r}
+# H1_sit_independent:  var(sit_phone) ≠ var(sit_no_phone)
+var(SitP_7p) / var(SitNP_7p)
+var.test(SitP_7p, SitNP_7p)
+# H1_walk_independent: var(walk_phone) ≠var(walk_no_phone)
+var(WalkP_7p) / var(WalkNP_7p)
+var.test(WalkP_7p, WalkNP_7p)
+```
+
+## Prepare Data Frames for Upcoming Tests
+```{r}
+# Prepare data frames special format needed for this test
+#Sit
+SitNP_P_7p <- data.frame(mag=c(SitP_7p,SitNP_7p), group=factor(c(rep("Sit_P", 7), rep("Sit_NP",7))))
+#walk
+WalkNP_P_7p <- data.frame(mag=c(WalkP_7p,WalkNP_7p), group=factor(c(rep("Walk_P", 7), rep("Walk_NP",7))))
+```
+## Levene’s Test
+```{r}
+#load libraries
+#install.packages("car")
+library(car)
+#center = mean
+leveneTest(mag ~ group, data=SitNP_P_7p,center=mean)
+leveneTest(mag ~ group, data=WalkNP_P_7p,center=mean)
+#center = median
+leveneTest(mag ~ group, data=SitNP_P_7p,center=median)
+leveneTest(mag ~ group, data=WalkNP_P_7p,center=median)
+```
+## Fligner-Killeen test
+```{r}
+fligner.test(mag ~ group, data=SitNP_P_7p)
+fligner.test(mag ~ group, data=WalkNP_P_7p)
+```
+
+## Power
+```{r}
+# Calculate the differences between the two modes sitting
+differences_sit <- testing_dat$SitP - testing_dat$SitNP
+differences_walk <-  testing_dat$WalkNP -testing_dat$WalkP 
+
+# Compute the standard deviation of the differences
+sd_differences_sit <- sd(differences_sit)
+sd_differences_walk <- sd(differences_walk)
+
+# Calculate the mean difference
+mean_difference_sit <- mean(differences_sit)
+mean_difference_walk <- mean(differences_walk)
+
+# data and sd from feasibility study
+power.t.test(delta=mean_difference_sit, sd=sd_differences_sit*sqrt(2), sig.level = 0.05,power=0.80, type="paired", alternative="two.sided")
+
+power.t.test(delta=mean_difference_walk, sd=sd_differences_walk*sqrt(2), sig.level = 0.05,power=0.80, type="paired", alternative="one.sided")
+
+# data and sd from feasibility study
+power.t.test(delta=mean_difference_sit, sd=sd_differences_sit*sqrt(2), sig.level = 0.01,power=0.80, type="paired", alternative="two.sided")
+
+power.t.test(delta=mean_difference_walk, sd=sd_differences_walk*sqrt(2), sig.level = 0.01,power=0.80, type="paired", alternative="one.sided")
+
+```
+## Binomial Test
+```{r}
+par(mfrow=c(1,2))
+plot(testing_dat$WalkP, type="h", main="WalkingP",ylim=c(9.8,10),xlim=c(0,15), ylab = "Acceleration Magnitude", xlab = "Participant")
+
+sum(testing_dat$WalkP > 10)
+binom.test(3, 15, 0.1)
+```
+## Two proportions
+```{r}
+par(mfrow=c(1,2))
+plot(WalkP_7p, type="h", main="WalkingP",ylim=c(9.8,10),xlim=c(0,15), ylab = "Acceleration Magnitude", xlab = "Participant")
+plot(WalkNP_7p, type="h", main="WalkingNP",ylim=c(9.8,10),xlim=c(0,15), ylab = "Acceleration Magnitude", xlab = "Participant")
+par(mfrow=c(1,2))
+
+count1 = sum(WalkP_7p > 9.888)
+count2 = sum(WalkNP_7p > 9.888)
+
+positive <- c(count1, count2)
+total <- c(7, 7)
+# We compute the proportions for Group 1 and Group 2
+positive/total
+# Test
+prop.test(positive, total)
+```
