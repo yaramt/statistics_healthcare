@@ -81,6 +81,8 @@ dat$acceleration <- sqrt(dat$x^2 + dat$y^2 + dat$z^2)
 ```
 ## Normal Distribution Check for 15 Participants - Histograms
 ```{r}
+{par(mfrow=c(2,2))
+
 # Histogram Sit with phone
 hist(testing_dat$SitP, breaks = seq(min(testing_dat$SitP), max(testing_dat$SitP), length.out = 30), ylim = c(1, 8),main = "Histogram of Sitting with Phone", xlab = "Mean Acceleration Magnitude [m/s^2]", ylab = "Frequency", xlim = c(9.5, 13), col = "black")
 
@@ -91,7 +93,13 @@ hist(testing_dat$SitNP, breaks = seq(min(testing_dat$SitNP), max(testing_dat$Sit
 hist(testing_dat$WalkP, breaks = seq(min(testing_dat$WalkP), max(testing_dat$WalkP), length.out = 10), ylim = c(1, 8),main = "Histogram of Walking with Phone", xlab = "Mean Acceleration Magnitude [m/s^2]", ylab = "Frequency", xlim = c(9.5, 13), col = "blue")
 
 #Histogram Walk without phone
-hist(testing_dat$WalkNP, breaks = seq(min(testing_dat$WalkNP), max(testing_dat$WalkNP),length.out =10), ylim = c(1, 8),main = "Histogram of Walking without Phone", xlab = "Mean Acceleration Magnitude [m/s^2]", ylab = "Frequency", xlim = c(9.5, 13), col = "blue")
+hist(testing_dat$WalkNP, breaks = seq(min(testing_dat$WalkNP), max(testing_dat$WalkNP),length.out =10), ylim = c(1, 8),main = "Histogram of Walking without Phone", xlab = "Mean Acceleration Magnitude [m/s^2]", ylab = "Frequency", xlim = c(9.5, 13), col = "blue")}
+
+# Use Shapiro-Wilk test to see if they might be normally distributed
+shapiro.test(testing_dat$SitP)
+shapiro.test(testing_dat$SitNP)
+shapiro.test(testing_dat$WalkP)
+shapiro.test(testing_dat$WalkNP)
 
 ```
 
