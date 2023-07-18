@@ -31,7 +31,7 @@ testing_dat <- data.frame(
 
 for (index in c(1:15)){
   # Imported preprocessed data
-  dat <- read.csv(sprintf("Data_clean/log_p%s.txt", index), sep="|")
+  dat <- read.csv(sprintf("Data_clean_15/log_p%s.txt", index), sep="|")
   
 # Acceleration
 dat$acceleration <- sqrt(dat$x^2 + dat$y^2 + dat$z^2)
@@ -41,6 +41,13 @@ dat$acceleration <- sqrt(dat$x^2 + dat$y^2 + dat$z^2)
   sitting_no_phone <- dat[dat$statusId == 1, ] # this is the id for sitting
   walking_phone <- dat[dat$statusId == 4, ] # this is the id for walking on phone
   walking_no_phone <- dat[dat$statusId == 3, ] # this is the id for walking
+  
+  # We will minimize the effects of starting and ending phase on the statistical analysis by
+  # eliminating the first and latter 2500 timestamps:
+  sitting_phone <- sitting_phone[2500:(nrow(sitting_phone)-2500),]
+  sitting_no_phone <- sitting_no_phone[2500:(nrow(sitting_no_phone)-2500),]
+  walking_phone <- walking_phone[2500:(nrow(walking_phone)-2500),]
+  walking_no_phone <- walking_no_phone[2500:(nrow(walking_no_phone)-2500),]
   
   # Normalize timestamps to beginnings of recordings
   min_sp <- min(sitting_phone$timestamp)
@@ -52,22 +59,15 @@ dat$acceleration <- sqrt(dat$x^2 + dat$y^2 + dat$z^2)
   walking_phone$timestamp <- (walking_phone$timestamp - min_wp)
   walking_no_phone$timestamp <- (walking_no_phone$timestamp - min_wnp)
   
-  # Plot sitting data
-  {plot(sitting_phone$timestamp/1000, sitting_phone$acceleration,type = "l",col = "red",xlab = "Timestamp  [s]",xlim = c(10, 60), ylim=c(0,30),ylab = "Acceleration magnitude sitting [m/s^2]")
+    # Plot sitting data
+  {plot(sitting_phone$timestamp/1000, sitting_phone$acceleration,type = "l",col = "red",xlab = "Timestamp  [s]",xlim = c(0, 55), ylim=c(0,30),ylab = "Acceleration magnitude sitting [m/s^2]")
   lines(sitting_no_phone$timestamp/1000, sitting_no_phone$acceleration,col = "blue")
   legend("topleft", legend=c("on phone", "off phone"),col=c("red", "blue"), lty=1, cex=0.8)}
   
   # Plot walking phone data
-  {plot(walking_phone$timestamp/1000, walking_phone$acceleration,type = "l",col = 2,xlab = "Timestamp [s]",xlim = c(10, 60), ylim=c(0,30),ylab = "Acceleration magnitude walking [m/s^2]")
+  {plot(walking_phone$timestamp/1000, walking_phone$acceleration,type = "l",col = 2,xlab = "Timestamp [s]",xlim = c(0, 55), ylim=c(0,30),ylab = "Acceleration magnitude walking [m/s^2]")
   lines(walking_no_phone$timestamp/1000, walking_no_phone$acceleration,col = 4)
   legend("topleft", legend=c("on phone", "off phone"),col=c("red", "blue"), lty=1:2, cex=0.8)}
-  
-  # We will minimize the effects of starting and ending phase on the statistical analysis by
-  # eliminating the first and latter 2500 timestamps:
-  sitting_phone <- sitting_phone[2500:(nrow(sitting_phone))-2500,]
-  sitting_no_phone <- sitting_no_phone[2500:(nrow(sitting_no_phone))-2500,]
-  walking_phone <- walking_phone[2500:(nrow(walking_phone))-2500,]
-  walking_no_phone <- walking_no_phone[2500:(nrow(walking_no_phone))-2500,]
   
   # Add entry for this specific participant to testing data
   testing_dat[nrow(testing_dat) + 1,] = c(
