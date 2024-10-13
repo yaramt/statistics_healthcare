@@ -40,6 +40,14 @@ Additionally, we collected acceleration data using the **Sensor Log** app by HFa
 - **Data Duration**: Accelerometer data was recorded for 15-20 seconds.
 ---
 
+## 📂 Data Files
+
+- **Data_raw_15**: Contains the raw accelerometer data from the 15 participants.
+- **Data_clean_15**: Contains the cleaned data from the 15 participants.
+- **final_report_analysis.Rmd**: Contains the final report with the statistical analysis of the data.
+
+---
+
 ## Hypotheses
 - **H1_sit**: The mean acceleration magnitude while sitting with the phone is different from while sitting without the phone.  
 
